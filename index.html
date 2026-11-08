@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
@@ -6,10 +7,35 @@
   <meta name="theme-color" content="#090a0d">
   <meta name="description" content="Habit Tracker - acompanha os teus hábitos.">
 
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./css/style.css">
 
   <title>Habit Tracker</title>
+
+  <!-- OneSignal -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "efd27372-b8e9-4a03-aefa-cef180bd51fa",
+
+        safari_web_id: "web.onesignal.auto.528b6caf-1e6b-4608-b4e6-faa03f146a9c",
+
+        serviceWorkerPath: "/habit-tracker/OneSignalSDKWorker.js",
+
+        serviceWorkerParam: {
+          scope: "/habit-tracker/"
+        },
+
+        notifyButton: {
+          enable: false
+        }
+      });
+    });
+  </script>
 </head>
 
 <body>
@@ -183,6 +209,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="js/app.js" defer></script>
+<script src="./js/app.js" defer></script>
 </body>
 </html>
