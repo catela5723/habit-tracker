@@ -854,23 +854,13 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-const exportBackupButton = $('#exportBackup');
-const importBackupButton = $('#importBackup');
-const backupFileInput = $('#backupFile');
+$('#exportBackup').addEventListener('click', exportBackup);
 
-if (exportBackupButton) {
-  exportBackupButton.addEventListener('click', exportBackup);
-}
+$('#importBackup').addEventListener('click', () => {
+  $('#backupFile').click();
+});
 
-if (importBackupButton && backupFileInput) {
-  importBackupButton.addEventListener('click', () => {
-    backupFileInput.click();
-  });
-}
-
-if (backupFileInput) {
-  backupFileInput.addEventListener('change', importBackup);
-}
+$('#backupFile').addEventListener('change', importBackup);
 
 // ---------------------------------
 // MAIN RENDER
