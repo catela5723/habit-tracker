@@ -1,3 +1,4 @@
+
 const $ = selector => document.querySelector(selector);
 
 const today = new Date();
@@ -107,6 +108,10 @@ function setDone(id, date, value) {
   save();
 }
 
+// ---------------------------------
+// WEEKLY HABIT TRACKER
+// ---------------------------------
+
 function weekDates() {
   const start = shiftDate(monday(today), weekOffset * 7);
 
@@ -115,10 +120,6 @@ function weekDates() {
     (_,i) => shiftDate(start,i)
   );
 }
-
-// ---------------------------------
-// WEEKLY HABIT TRACKER
-// ---------------------------------
 
 function renderWeek() {
   const dates = weekDates();
@@ -220,11 +221,9 @@ function renderTasks() {
     ? tasks.map((task,index) => `
       <div class="task ${task.done?'completed':''}">
         <span class="taskicon">${escapeHTML(task.emoji || '◦')}</span>
-
         <label for="task${index}">
           ${escapeHTML(task.name)}
         </label>
-
         <input
           class="check"
           type="checkbox"
@@ -316,7 +315,6 @@ $('#moods').addEventListener('click',event => {
 
 function renderGym() {
   const gym = state.habits.find(h => h.id === 'gym');
-
   const target = gym ? gym.target : 4;
 
   const count = gym
@@ -487,9 +485,7 @@ function saveHabit() {
 }
 
 $('#settingsBtn').addEventListener('click',openModal);
-
 $('#saveHabit').addEventListener('click',saveHabit);
-
 $('#closeModal').addEventListener('click',closeModal);
 
 $('#cancelEdit').addEventListener('click',() => {
@@ -740,6 +736,133 @@ function toast(message) {
 }
 
 // ---------------------------------
+// BACKUP AND RESTORE
+// ---------------------------------
+
+function exportBackup() {
+  const backup = {
+    app: 'Habit Tracker',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: state
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(backup, null, 2)],
+    { type: 'application/json' }
+  );
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  const date = new Date().toISOString().slice(0, 10);
+
+  link.href = url;
+  link.download = `habit-tracker-backup-${date}.json`;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  toast('Backup exportado com sucesso');
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    try {
+      const backup = JSON.parse(reader.result);
+
+      if (
+        backup.app !== 'Habit Tracker' ||
+        backup.version !== 1 ||
+        !backup.data ||
+        !Array.isArray(backup.data.habits) ||
+        typeof backup.data.done !== 'object' ||
+        backup.data.done === null ||
+        typeof backup.data.tasks !== 'object' ||
+        backup.data.tasks === null ||
+        typeof backup.data.moods !== 'object' ||
+        backup.data.moods === null
+      ) {
+        throw new Error('Formato de backup inválido.');
+      }
+
+      const validHabits = backup.data.habits.every(habit =>
+        habit &&
+        typeof habit.id === 'string' &&
+        typeof habit.name === 'string'
+      );
+
+      if (!validHabits) {
+        throw new Error('Os hábitos do backup são inválidos.');
+      }
+
+      const confirmed = confirm(
+        'Queres restaurar este backup?\n\n' +
+        'Os dados atuais deste dispositivo serão substituídos.'
+      );
+
+      if (!confirmed) {
+        event.target.value = '';
+        return;
+      }
+
+      state = {
+        habits: backup.data.habits.map(habit => ({
+          ...habit,
+          target: Math.min(7, Math.max(1, Number(habit.target) || 7))
+        })),
+        done: backup.data.done,
+        tasks: backup.data.tasks,
+        moods: backup.data.moods
+      };
+
+      localStorage.setItem('habittracker-v1', JSON.stringify(state));
+      localStorage.setItem('dailyflow-v1', JSON.stringify(state));
+
+      toast('Backup restaurado com sucesso');
+
+      render();
+      renderHabitManagement();
+
+      event.target.value = '';
+
+    } catch (error) {
+      alert(
+        'Não foi possível importar o backup.\n' +
+        'Verifica se selecionaste um ficheiro válido.'
+      );
+
+      console.error('Erro ao importar backup:', error);
+      event.target.value = '';
+    }
+  };
+
+  reader.onerror = () => {
+    alert('Não foi possível ler o ficheiro.');
+    event.target.value = '';
+  };
+
+  reader.readAsText(file);
+}
+
+$('#exportBackup').addEventListener('click', exportBackup);
+
+$('#importBackup').addEventListener('click', () => {
+  $('#backupFile').click();
+});
+
+$('#backupFile').addEventListener('change', importBackup);
+
+// ---------------------------------
 // MAIN RENDER
 // ---------------------------------
 
@@ -754,12 +877,74 @@ function render() {
 }
 
 // ---------------------------------
+// ONESIGNAL NOTIFICATIONS
+// ---------------------------------
+
+function setupNotificationButton() {
+  const settingsButton = $('#settingsBtn');
+
+  if (!settingsButton || $('#notificationBtn')) return;
+
+  const button = document.createElement('button');
+  button.id = 'notificationBtn';
+  button.className = 'iconbtn';
+  button.type = 'button';
+  button.textContent = '🔔';
+  button.setAttribute('aria-label', 'Ativar notificações');
+  button.title = 'Ativar notificações';
+  button.style.marginRight = '8px';
+
+  settingsButton.parentNode.insertBefore(button, settingsButton);
+
+  button.addEventListener('click', () => {
+    if (!('Notification' in window)) {
+      toast('Este navegador não suporta notificações.');
+      return;
+    }
+
+    if (!window.OneSignalDeferred) {
+      toast('OneSignal ainda não está carregado.');
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = '…';
+
+    window.OneSignalDeferred.push(async OneSignal => {
+      try {
+        await OneSignal.Notifications.requestPermission();
+
+        if (Notification.permission === 'granted') {
+          await OneSignal.User.PushSubscription.optIn();
+
+          button.textContent = '🔔';
+          button.title = 'Notificações ativadas';
+
+          toast('Notificações ativadas!');
+        } else if (Notification.permission === 'denied') {
+          button.textContent = '🔕';
+          button.title = 'Notificações bloqueadas nas definições';
+
+          toast('Permissão bloqueada. Ativa-a nas definições do iPhone.');
+        } else {
+          button.textContent = '🔔';
+          toast('Ainda não autorizaste as notificações.');
+        }
+      } catch (error) {
+        console.error('Erro ao ativar notificações:', error);
+
+        button.textContent = '🔔';
+        toast('Não foi possível ativar as notificações.');
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+}
+
+// ---------------------------------
 // INITIALIZATION
 // ---------------------------------
 
+setupNotificationButton();
 render();
-
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js')
-    .catch(error => console.error('Service Worker:',error));
-}
