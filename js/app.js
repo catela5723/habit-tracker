@@ -900,55 +900,130 @@ function setupNotificationButton() {
   button.className = 'iconbtn';
   button.type = 'button';
   button.textContent = '🔔';
-  button.setAttribute('aria-label', 'Ativar notificações');
-  button.title = 'Ativar notificações';
-  button.style.marginRight = '8px';
+  button.title = 'Configurar notificações';
 
   settingsButton.parentNode.insertBefore(button, settingsButton);
 
-  button.addEventListener('click', () => {
-    if (!('Notification' in window)) {
-      toast('Este navegador não suporta notificações.');
-      return;
-    }
+  button.addEventListener('click', async () => {
+    let settings = JSON.parse(
+      localStorage.getItem('notificationSettings') || '{}'
+    );
 
-    if (!window.OneSignalDeferred) {
-      toast('OneSignal ainda não está carregado.');
-      return;
-    }
+    const panel = document.createElement('div');
+    panel.id = 'notificationPanel';
 
-    button.disabled = true;
-    button.textContent = '…';
+    panel.style.cssText = `
+      position:fixed;
+      inset:0;
+      z-index:99999;
+      background:rgba(0,0,0,.75);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    `;
 
-    window.OneSignalDeferred.push(async OneSignal => {
-      try {
-        await OneSignal.Notifications.requestPermission();
+    panel.innerHTML = `
+      <div style="
+        background:#17191f;
+        color:white;
+        padding:24px;
+        border-radius:16px;
+        width:100%;
+        max-width:380px;
+      ">
+        <h2>🔔 Lembretes</h2>
 
-        if (Notification.permission === 'granted') {
-          await OneSignal.User.PushSubscription.optIn();
+        <label>Tipo de lembrete</label>
+        <select id="reminderType" style="width:100%;padding:12px;margin:10px 0">
+          <option value="off">Desativado</option>
+          <option value="morning">Uma vez de manhã</option>
+          <option value="30">De 30 em 30 minutos</option>
+          <option value="60">De hora a hora</option>
+          <option value="120">De 2 em 2 horas</option>
+        </select>
 
-          button.textContent = '🔔';
-          button.title = 'Notificações ativadas';
+        <label>Hora de início</label>
+        <input id="reminderStart" type="time"
+          value="${settings.start || '09:00'}"
+          style="width:100%;padding:10px;margin:8px 0">
 
-          toast('Notificações ativadas!');
-        } else if (Notification.permission === 'denied') {
-          button.textContent = '🔕';
-          button.title = 'Notificações bloqueadas nas definições';
+        <label>Hora de fim</label>
+        <input id="reminderEnd" type="time"
+          value="${settings.end || '22:00'}"
+          style="width:100%;padding:10px;margin:8px 0">
 
-          toast('Permissão bloqueada. Ativa-a nas definições do iPhone.');
-        } else {
-          button.textContent = '🔔';
-          toast('Ainda não autorizaste as notificações.');
-        }
-      } catch (error) {
-        console.error('Erro ao ativar notificações:', error);
+        <label>Dias da semana</label>
+        <div id="reminderDays" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">
+          ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((day, i) => `
+            <label>
+              <input type="checkbox" value="${i}"
+                ${settings.days?.includes(i) !== false ? 'checked' : ''}>
+              ${day}
+            </label>
+          `).join('')}
+        </div>
 
-        button.textContent = '🔔';
-        toast('Não foi possível ativar as notificações.');
-      } finally {
-        button.disabled = false;
+        <button id="saveReminder" style="padding:12px;width:100%;margin-top:12px">
+          Guardar configurações
+        </button>
+
+        <button id="closeReminder" style="padding:12px;width:100%;margin-top:8px">
+          Fechar
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    $('#reminderType').value = settings.type || 'off';
+
+    $('#closeReminder').onclick = () => panel.remove();
+
+    $('#saveReminder').onclick = async () => {
+      const type = $('#reminderType').value;
+      const start = $('#reminderStart').value;
+      const end = $('#reminderEnd').value;
+
+      const days = [...panel.querySelectorAll('#reminderDays input:checked')]
+        .map(input => Number(input.value));
+
+      if (!start || !end || start >= end) {
+        toast('Define um intervalo horário válido.');
+        return;
       }
-    });
+
+      if (!days.length) {
+        toast('Seleciona pelo menos um dia.');
+        return;
+      }
+
+      settings = { type, start, end, days };
+
+      localStorage.setItem(
+        'notificationSettings',
+        JSON.stringify(settings)
+      );
+
+      if (type !== 'off') {
+        if (!('Notification' in window)) {
+          toast('Este navegador não suporta notificações.');
+          return;
+        }
+
+        if (Notification.permission !== 'granted') {
+          const permission = await Notification.requestPermission();
+
+          if (permission !== 'granted') {
+            toast('Tens de autorizar as notificações.');
+            return;
+          }
+        }
+      }
+
+      toast('Configurações guardadas!');
+      panel.remove();
+    };
   });
 }
 
