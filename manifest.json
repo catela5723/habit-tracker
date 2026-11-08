@@ -1,0 +1,12 @@
+{
+  "name": "Habit Tracker",
+  "short_name": "Habit Tracker",
+  "description": "Acompanha os teus hábitos e objetivos diários.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090a0d",
+  "theme_color": "#090a0d",
+  "lang": "pt-PT"
+}

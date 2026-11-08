@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#090a0d">
+  <meta name="description" content="Habit Tracker - acompanha os teus hábitos.">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+
+  <title>Habit Tracker</title>
+</head>
+
+<body>
+<main class="app">
+
+  <header class="top">
+    <div>
+      <div class="eyebrow">O teu espaço pessoal</div>
+      <div class="brand">Habit<span> Tracker</span></div>
+      <div class="date" id="todayLabel"></div>
+    </div>
+    <button class="iconbtn" id="settingsBtn" aria-label="Gerir hábitos">⚙</button>
+  </header>
+
+  <section class="card weekcard">
+    <div class="sectionhead">
+      <h2>✦ Hábitos da semana</h2>
+      <div class="weeknav">
+        <button id="prevWeek">‹</button>
+        <span class="sub" id="weekLabel"></span>
+        <button id="nextWeek">›</button>
+      </div>
+    </div>
+
+    <div class="weekgrid" id="weekGrid"></div>
+
+    <div class="weekfoot">
+      <span id="weekCount">0 registos</span>
+      <span id="weekPct">0%</span>
+    </div>
+
+    <div class="progress">
+      <span id="weekProgress"></span>
+    </div>
+  </section>
+
+  <div class="twocol">
+
+    <section class="card mini">
+      <div class="minihead">
+        <span>💪 Ginásio</span>
+        <span class="sub">Esta semana</span>
+      </div>
+      <div>
+        <div class="bigvalue" id="gymCount">0/4</div>
+        <div class="muted">Treinos concluídos</div>
+        <div class="pill" id="gymPill">Vamos começar</div>
+      </div>
+    </section>
+
+    <section class="card mini">
+      <div class="minihead">
+        <span>☀️ Mood</span>
+        <span class="sub">Hoje</span>
+      </div>
+      <div>
+        <div class="bigvalue" id="moodLabel">Como estás?</div>
+        <div class="moods" id="moods">
+          <button class="mood" data-mood="😞">😞</button>
+          <button class="mood" data-mood="😐">😐</button>
+          <button class="mood" data-mood="🙂">🙂</button>
+          <button class="mood" data-mood="😁">😁</button>
+          <button class="mood" data-mood="🤩">🤩</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="card">
+    <div class="sectionhead">
+      <h2>☑ Tarefas diárias</h2>
+      <span class="sub" id="taskCount">0 concluídas</span>
+    </div>
+
+    <div class="tasks" id="taskList"></div>
+
+    <div class="addrow">
+      <input id="taskInput" placeholder="Adicionar tarefa..." maxlength="55">
+      <button class="primary" id="addTask">Adicionar</button>
+    </div>
+  </section>
+
+  <section class="card calendar" id="calendar">
+    <div class="sectionhead">
+      <h2>▦ Calendário mensal</h2>
+      <div class="weeknav">
+        <button id="prevMonth">‹</button>
+        <span class="sub" id="monthLabel"></span>
+        <button id="nextMonth">›</button>
+      </div>
+    </div>
+
+    <div class="calgrid" id="calGrid"></div>
+
+    <div class="callegend">
+      <span><i class="legenddot full-dot"></i>Completo</span>
+      <span><i class="legenddot partial-dot"></i>Parcial</span>
+      <span><i class="legenddot empty-dot"></i>Sem registo</span>
+    </div>
+
+    <div id="selectedDayInfo" class="selected-day-info"></div>
+  </section>
+
+  <section class="card stats" id="stats">
+    <div class="sectionhead">
+      <h2>▥ Estatísticas</h2>
+      <span class="sub">Visão geral</span>
+    </div>
+
+    <div class="statsgrid">
+      <div class="statbox">
+        <span class="muted">Cumprimento semanal</span>
+        <strong id="statWeek">0%</strong>
+      </div>
+      <div class="statbox">
+        <span class="muted">Hábitos ativos</span>
+        <strong id="statHabits">0</strong>
+      </div>
+      <div class="statbox">
+        <span class="muted">Registos concluídos</span>
+        <strong id="statDone">0</strong>
+      </div>
+      <div class="statbox">
+        <span class="muted">Melhor sequência</span>
+        <strong id="statStreak">0 dias</strong>
+      </div>
+    </div>
+  </section>
+
+  <nav class="bottomnav">
+    <button class="active" data-view="home">⌂<br>Início</button>
+    <button data-view="calendar">▦<br>Calendário</button>
+    <button data-view="stats">▥<br>Progresso</button>
+    <button data-view="habits">＋<br>Hábitos</button>
+  </nav>
+
+</main>
+
+<!-- Modal de gestão de hábitos -->
+<div class="modal" id="modal">
+  <div class="modalbox">
+
+    <div class="sectionhead">
+      <h3 id="modalTitle">Gerir hábitos</h3>
+      <button class="iconbtn" id="closeModal">✕</button>
+    </div>
+
+    <div id="habitList" class="habit-management"></div>
+
+    <div class="divider"></div>
+
+    <h3 id="formTitle">Adicionar hábito</h3>
+
+    <label for="habitName">Nome do hábito</label>
+    <input id="habitName" placeholder="Ex.: Tomar vitaminas" maxlength="35">
+
+    <label for="habitEmoji">Emoji</label>
+    <input id="habitEmoji" placeholder="Ex.: 💊" maxlength="4">
+
+    <label for="habitTarget">Objetivo semanal (dias)</label>
+    <input type="number" id="habitTarget" min="1" max="7" value="7">
+
+    <div class="modalactions">
+      <button class="secondary" id="cancelEdit" hidden>Cancelar edição</button>
+      <button class="primary" id="saveHabit">Guardar hábito</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js" defer></script>
+</body>
+</html>
