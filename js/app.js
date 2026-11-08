@@ -893,19 +893,32 @@ function render() {
 function setupNotificationButton() {
   const settingsButton = $('#settingsBtn');
 
-  if (!settingsButton || $('#notificationBtn')) return;
+  if (!settingsButton) return;
 
-  const button = document.createElement('button');
-  button.id = 'notificationBtn';
-  button.className = 'iconbtn';
-  button.type = 'button';
-  button.textContent = '🔔';
-  button.title = 'Configurar notificações';
+  // Criar botão do sino
+  let button = $('#notificationBtn');
 
-  settingsButton.parentNode.insertBefore(button, settingsButton);
+  if (!button) {
+    button = document.createElement('button');
+    button.id = 'notificationBtn';
+    button.className = 'iconbtn';
+    button.type = 'button';
+    button.textContent = '🔔';
+    button.title = 'Configurar notificações';
+
+    settingsButton.parentNode.insertBefore(button, settingsButton);
+  }
+
+  // Evitar criar eventos duplicados
+  if (button.dataset.initialized === 'true') return;
+  button.dataset.initialized = 'true';
 
   button.addEventListener('click', async () => {
-    let settings = JSON.parse(
+
+    // Remover painel anterior, se existir
+    $('#notificationPanel')?.remove();
+
+    const saved = JSON.parse(
       localStorage.getItem('notificationSettings') || '{}'
     );
 
@@ -916,11 +929,12 @@ function setupNotificationButton() {
       position:fixed;
       inset:0;
       z-index:99999;
-      background:rgba(0,0,0,.75);
+      background:rgba(0,0,0,.8);
       display:flex;
       align-items:center;
       justify-content:center;
       padding:20px;
+      box-sizing:border-box;
     `;
 
     panel.innerHTML = `
@@ -928,14 +942,25 @@ function setupNotificationButton() {
         background:#17191f;
         color:white;
         padding:24px;
-        border-radius:16px;
+        border-radius:18px;
         width:100%;
-        max-width:380px;
+        max-width:400px;
+        max-height:90vh;
+        overflow-y:auto;
+        box-sizing:border-box;
       ">
-        <h2>🔔 Lembretes</h2>
+        <h2 style="margin-top:0">🔔 Lembretes</h2>
 
-        <label>Tipo de lembrete</label>
-        <select id="reminderType" style="width:100%;padding:12px;margin:10px 0">
+        <p>Configura quando queres receber notificações.</p>
+
+        <label for="reminderType">Frequência</label>
+
+        <select id="reminderType" style="
+          width:100%;
+          padding:12px;
+          margin:8px 0 18px;
+          border-radius:8px;
+        ">
           <option value="off">Desativado</option>
           <option value="morning">Uma vez de manhã</option>
           <option value="30">De 30 em 30 minutos</option>
@@ -943,69 +968,91 @@ function setupNotificationButton() {
           <option value="120">De 2 em 2 horas</option>
         </select>
 
-        <label>Hora de início</label>
+        <label for="reminderStart">Hora de início</label>
+
         <input id="reminderStart" type="time"
-          value="${settings.start || '09:00'}"
-          style="width:100%;padding:10px;margin:8px 0">
+          value="${saved.start || '09:00'}"
+          style="width:100%;padding:12px;margin:8px 0 16px;box-sizing:border-box">
 
-        <label>Hora de fim</label>
+        <label for="reminderEnd">Hora de fim</label>
+
         <input id="reminderEnd" type="time"
-          value="${settings.end || '22:00'}"
-          style="width:100%;padding:10px;margin:8px 0">
+          value="${saved.end || '22:00'}"
+          style="width:100%;padding:12px;margin:8px 0 16px;box-sizing:border-box">
 
-        <label>Dias da semana</label>
-        <div id="reminderDays" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0">
+        <p>Dias da semana</p>
+
+        <div id="reminderDays" style="
+          display:grid;
+          grid-template-columns:repeat(4,1fr);
+          gap:10px;
+          margin-bottom:20px;
+        ">
           ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((day, i) => `
-            <label>
+            <label style="font-size:14px">
               <input type="checkbox" value="${i}"
-                ${settings.days?.includes(i) !== false ? 'checked' : ''}>
+                ${(saved.days || [0,1,2,3,4,5,6]).includes(i) ? 'checked' : ''}>
               ${day}
             </label>
           `).join('')}
         </div>
 
-        <button id="saveReminder" style="padding:12px;width:100%;margin-top:12px">
-          Guardar configurações
-        </button>
+        <button id="saveReminder" style="
+          width:100%;
+          padding:13px;
+          border:0;
+          border-radius:9px;
+          background:#35d399;
+          color:#07120e;
+          font-weight:bold;
+          cursor:pointer;
+        ">Guardar configurações</button>
 
-        <button id="closeReminder" style="padding:12px;width:100%;margin-top:8px">
-          Fechar
-        </button>
+        <button id="closeReminder" style="
+          width:100%;
+          padding:12px;
+          margin-top:10px;
+          border:1px solid #444;
+          border-radius:9px;
+          background:transparent;
+          color:white;
+          cursor:pointer;
+        ">Fechar</button>
       </div>
     `;
 
     document.body.appendChild(panel);
 
-    $('#reminderType').value = settings.type || 'off';
+    $('#reminderType').value = saved.type || 'off';
 
-    $('#closeReminder').onclick = () => panel.remove();
+    $('#closeReminder').addEventListener('click', () => {
+      panel.remove();
+    });
 
-    $('#saveReminder').onclick = async () => {
+    panel.addEventListener('click', event => {
+      if (event.target === panel) panel.remove();
+    });
+
+    $('#saveReminder').addEventListener('click', async () => {
       const type = $('#reminderType').value;
       const start = $('#reminderStart').value;
       const end = $('#reminderEnd').value;
 
-      const days = [...panel.querySelectorAll('#reminderDays input:checked')]
-        .map(input => Number(input.value));
-
-      if (!start || !end || start >= end) {
-        toast('Define um intervalo horário válido.');
-        return;
-      }
-
-      if (!days.length) {
-        toast('Seleciona pelo menos um dia.');
-        return;
-      }
-
-      settings = { type, start, end, days };
-
-      localStorage.setItem(
-        'notificationSettings',
-        JSON.stringify(settings)
-      );
+      const days = [
+        ...panel.querySelectorAll('#reminderDays input:checked')
+      ].map(input => Number(input.value));
 
       if (type !== 'off') {
+        if (!start || !end || start >= end) {
+          toast('Define um intervalo horário válido.');
+          return;
+        }
+
+        if (days.length === 0) {
+          toast('Seleciona pelo menos um dia.');
+          return;
+        }
+
         if (!('Notification' in window)) {
           toast('Este navegador não suporta notificações.');
           return;
@@ -1021,9 +1068,21 @@ function setupNotificationButton() {
         }
       }
 
+      const configuration = {
+        type,
+        start,
+        end,
+        days
+      };
+
+      localStorage.setItem(
+        'notificationSettings',
+        JSON.stringify(configuration)
+      );
+
       toast('Configurações guardadas!');
       panel.remove();
-    };
+    });
   });
 }
 
