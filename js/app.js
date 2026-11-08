@@ -1080,6 +1080,61 @@ function setupNotificationButton() {
         JSON.stringify(configuration)
       );
 
+      // Enviar configurações para o Cloudflare
+try {
+  const subscriptionId = await new Promise((resolve, reject) => {
+    if (!window.OneSignalDeferred) {
+      reject(new Error('OneSignal não está carregado.'));
+      return;
+    }
+
+    window.OneSignalDeferred.push(async OneSignal => {
+      try {
+        const id = OneSignal.User.PushSubscription.id;
+
+        if (!id) {
+          reject(new Error('Subscrição OneSignal ainda não disponível.'));
+          return;
+        }
+
+        resolve(id);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+
+  const response = await fetch(
+    'https://habit-tracker-notifications.joaopedro5723.workers.dev/api/reminders',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subscriptionId,
+        type: configuration.type,
+        start: configuration.start,
+        end: configuration.end,
+        days: configuration.days
+      })
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Erro ao guardar no servidor.');
+  }
+
+  console.log('Lembretes sincronizados:', result);
+
+} catch (error) {
+  console.error('Erro ao sincronizar lembretes:', error);
+  toast('Erro ao sincronizar com o servidor.');
+  return;
+}
+
       toast('Configurações guardadas!');
       panel.remove();
     });
