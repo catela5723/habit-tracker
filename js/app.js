@@ -854,13 +854,23 @@ function importBackup(event) {
   reader.readAsText(file);
 }
 
-$('#exportBackup').addEventListener('click', exportBackup);
+const exportBackupButton = $('#exportBackup');
+const importBackupButton = $('#importBackup');
+const backupFileInput = $('#backupFile');
 
-$('#importBackup').addEventListener('click', () => {
-  $('#backupFile').click();
-});
+if (exportBackupButton) {
+  exportBackupButton.addEventListener('click', exportBackup);
+}
 
-$('#backupFile').addEventListener('change', importBackup);
+if (importBackupButton && backupFileInput) {
+  importBackupButton.addEventListener('click', () => {
+    backupFileInput.click();
+  });
+}
+
+if (backupFileInput) {
+  backupFileInput.addEventListener('change', importBackup);
+}
 
 // ---------------------------------
 // MAIN RENDER
