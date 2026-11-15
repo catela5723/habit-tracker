@@ -893,7 +893,7 @@ function render() {
 const REMINDER_API = 'https://habit-tracker-notifications.joaopedro5723.workers.dev/api/task-reminders';
 let reminderSubscriptionId = null;
 function getSubscriptionId(){return new Promise((resolve,reject)=>{if(!window.OneSignalDeferred)return reject(new Error('OneSignal não carregou.'));window.OneSignalDeferred.push(async OneSignal=>{try{let id=OneSignal.User.PushSubscription.id;if(!id) {await OneSignal.User.PushSubscription.optIn();id=OneSignal.User.PushSubscription.id;}if(!id)throw new Error('Ativa primeiro as notificações no dispositivo.');resolve(id);}catch(e){reject(e);}});});}
-async function reminderRequest(url,options={}){const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const data=await response.json();if(!response.ok)throw new Error(data.error||'Erro no servidor');return data;}
+async function reminderRequest(url,options={}){const session=localStorage.getItem('ht_session_v1');const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(session?{Authorization:`Bearer ${session}`} :{}),...(options.headers||{})}});const data=await response.json();if(!response.ok)throw new Error(data.error||'Erro no servidor');return data;}
 function reminderTargets(){const list=state.habits.map(h=>({id:h.id,type:'habit',title:`${h.emoji||'✨'} ${h.name}`}));const seen=new Set();Object.values(state.tasks||{}).flat().forEach((t,i)=>{const name=String(t.name||'').trim();if(name&&!seen.has(name)){seen.add(name);list.push({id:'task:'+name,type:'task',title:`☑ ${name}`});}});return list;}
 async function openReminderManager(){
  const old=$('#notificationPanel');if(old)old.remove();
