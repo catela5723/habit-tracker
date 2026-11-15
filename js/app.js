@@ -895,19 +895,13 @@ function setupNotificationButton() {
 
   if (!settingsButton) return;
 
-  // Criar botão do sino
-  let button = $('#notificationBtn');
+  // O botão de notificações já existe no cabeçalho.
+  const button = $('#notificationBtn');
+  if (!button) return;
 
-  if (!button) {
-    button = document.createElement('button');
-    button.id = 'notificationBtn';
-    button.className = 'iconbtn';
-    button.type = 'button';
-    button.textContent = '🔔';
-    button.title = 'Configurar notificações';
-
-    settingsButton.parentNode.insertBefore(button, settingsButton);
-  }
+  const indicator = $('#notificationIndicator');
+  const initialSettings = JSON.parse(localStorage.getItem('notificationSettings') || '{}');
+  indicator?.classList.toggle('is-active', Boolean(initialSettings.type && initialSettings.type !== 'off'));
 
   // Evitar criar eventos duplicados
   if (button.dataset.initialized === 'true') return;
@@ -1079,6 +1073,7 @@ function setupNotificationButton() {
         'notificationSettings',
         JSON.stringify(configuration)
       );
+      indicator?.classList.toggle('is-active', type !== 'off');
 
       // Enviar configurações para o Cloudflare
 try {

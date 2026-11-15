@@ -79,6 +79,69 @@ button {
   cursor: pointer;
 }
 
+/* Ações do cabeçalho */
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.top-actions .iconbtn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #202530, #151922);
+  border-color: #343b49;
+  box-shadow: 0 5px 16px #0003;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.top-actions .iconbtn:active { transform: scale(.94); }
+.top-actions .iconbtn:hover { border-color: #65738b; }
+.top-actions svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.notification-trigger {
+  color: #dce8ff;
+  background: linear-gradient(145deg, #25344c, #182235) !important;
+  border-color: #3b5274 !important;
+}
+
+.notification-trigger svg { width: 21px; height: 21px; }
+.notification-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid #182235;
+  border-radius: 50%;
+  background: #64748b;
+}
+.notification-indicator.is-active {
+  background: #55dda4;
+  box-shadow: 0 0 0 3px #55dda422;
+}
+
+@media (max-width: 420px) {
+  body { padding: 22px 12px 34px; }
+  .brand { font-size: 24px; }
+  .top-actions { gap: 7px; }
+  .top-actions .iconbtn { width: 41px; height: 41px; border-radius: 14px; }
+}
+
 .card {
   background: linear-gradient(145deg, #191c24, #13151b);
   border: 1px solid #282c36;
