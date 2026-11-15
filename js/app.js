@@ -887,256 +887,29 @@ function render() {
 }
 
 // ---------------------------------
-// ONESIGNAL NOTIFICATIONS
 // ---------------------------------
-
-function setupNotificationButton() {
-  const settingsButton = $('#settingsBtn');
-
-  if (!settingsButton) return;
-
-  // O botão de notificações já existe no cabeçalho.
-  const button = $('#notificationBtn');
-  if (!button) return;
-
-  const indicator = $('#notificationIndicator');
-  const initialSettings = JSON.parse(localStorage.getItem('notificationSettings') || '{}');
-  indicator?.classList.toggle('is-active', Boolean(initialSettings.type && initialSettings.type !== 'off'));
-
-  // Evitar criar eventos duplicados
-  if (button.dataset.initialized === 'true') return;
-  button.dataset.initialized = 'true';
-
-  button.addEventListener('click', async () => {
-
-    // Remover painel anterior, se existir
-    $('#notificationPanel')?.remove();
-
-    const saved = JSON.parse(
-      localStorage.getItem('notificationSettings') || '{}'
-    );
-
-    const panel = document.createElement('div');
-    panel.id = 'notificationPanel';
-
-    panel.style.cssText = `
-      position:fixed;
-      inset:0;
-      z-index:99999;
-      background:rgba(0,0,0,.8);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      box-sizing:border-box;
-    `;
-
-    panel.innerHTML = `
-      <div style="
-        background:#17191f;
-        color:white;
-        padding:24px;
-        border-radius:18px;
-        width:100%;
-        max-width:400px;
-        max-height:90vh;
-        overflow-y:auto;
-        box-sizing:border-box;
-      ">
-        <h2 style="margin-top:0">🔔 Lembretes</h2>
-
-        <p>Configura quando queres receber notificações.</p>
-
-        <label for="reminderType">Frequência</label>
-
-        <select id="reminderType" style="
-          width:100%;
-          padding:12px;
-          margin:8px 0 18px;
-          border-radius:8px;
-        ">
-          <option value="off">Desativado</option>
-          <option value="morning">Uma vez de manhã</option>
-          <option value="30">De 30 em 30 minutos</option>
-          <option value="60">De hora a hora</option>
-          <option value="120">De 2 em 2 horas</option>
-        </select>
-
-        <label for="reminderStart">Hora de início</label>
-
-        <input id="reminderStart" type="time"
-          value="${saved.start || '09:00'}"
-          style="width:100%;padding:12px;margin:8px 0 16px;box-sizing:border-box">
-
-        <label for="reminderEnd">Hora de fim</label>
-
-        <input id="reminderEnd" type="time"
-          value="${saved.end || '22:00'}"
-          style="width:100%;padding:12px;margin:8px 0 16px;box-sizing:border-box">
-
-        <p>Dias da semana</p>
-
-        <div id="reminderDays" style="
-          display:grid;
-          grid-template-columns:repeat(4,1fr);
-          gap:10px;
-          margin-bottom:20px;
-        ">
-          ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((day, i) => `
-            <label style="font-size:14px">
-              <input type="checkbox" value="${i}"
-                ${(saved.days || [0,1,2,3,4,5,6]).includes(i) ? 'checked' : ''}>
-              ${day}
-            </label>
-          `).join('')}
-        </div>
-
-        <button id="saveReminder" style="
-          width:100%;
-          padding:13px;
-          border:0;
-          border-radius:9px;
-          background:#35d399;
-          color:#07120e;
-          font-weight:bold;
-          cursor:pointer;
-        ">Guardar configurações</button>
-
-        <button id="closeReminder" style="
-          width:100%;
-          padding:12px;
-          margin-top:10px;
-          border:1px solid #444;
-          border-radius:9px;
-          background:transparent;
-          color:white;
-          cursor:pointer;
-        ">Fechar</button>
-      </div>
-    `;
-
-    document.body.appendChild(panel);
-
-    $('#reminderType').value = saved.type || 'off';
-
-    $('#closeReminder').addEventListener('click', () => {
-      panel.remove();
-    });
-
-    panel.addEventListener('click', event => {
-      if (event.target === panel) panel.remove();
-    });
-
-    $('#saveReminder').addEventListener('click', async () => {
-      const type = $('#reminderType').value;
-      const start = $('#reminderStart').value;
-      const end = $('#reminderEnd').value;
-
-      const days = [
-        ...panel.querySelectorAll('#reminderDays input:checked')
-      ].map(input => Number(input.value));
-
-      if (type !== 'off') {
-        if (!start || !end || start >= end) {
-          toast('Define um intervalo horário válido.');
-          return;
-        }
-
-        if (days.length === 0) {
-          toast('Seleciona pelo menos um dia.');
-          return;
-        }
-
-        if (!('Notification' in window)) {
-          toast('Este navegador não suporta notificações.');
-          return;
-        }
-
-        if (Notification.permission !== 'granted') {
-          const permission = await Notification.requestPermission();
-
-          if (permission !== 'granted') {
-            toast('Tens de autorizar as notificações.');
-            return;
-          }
-        }
-      }
-
-      const configuration = {
-        type,
-        start,
-        end,
-        days
-      };
-
-      localStorage.setItem(
-        'notificationSettings',
-        JSON.stringify(configuration)
-      );
-      indicator?.classList.toggle('is-active', type !== 'off');
-
-      // Enviar configurações para o Cloudflare
-try {
-  const subscriptionId = await new Promise((resolve, reject) => {
-    if (!window.OneSignalDeferred) {
-      reject(new Error('OneSignal não está carregado.'));
-      return;
-    }
-
-    window.OneSignalDeferred.push(async OneSignal => {
-      try {
-        const id = OneSignal.User.PushSubscription.id;
-
-        if (!id) {
-          reject(new Error('Subscrição OneSignal ainda não disponível.'));
-          return;
-        }
-
-        resolve(id);
-      } catch (error) {
-        reject(error);
-      }
-    });
-  });
-
-  const response = await fetch(
-    'https://habit-tracker-notifications.joaopedro5723.workers.dev/api/reminders',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        subscriptionId,
-        type: configuration.type,
-        start: configuration.start,
-        end: configuration.end,
-        days: configuration.days
-      })
-    }
-  );
-
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.error || 'Erro ao guardar no servidor.');
-  }
-
-  console.log('Lembretes sincronizados:', result);
-
-} catch (error) {
-  console.error('Erro ao sincronizar lembretes:', error);
-  toast('Erro ao sincronizar com o servidor.');
-  return;
-}
-
-      toast('Configurações guardadas!');
-      panel.remove();
-    });
-  });
-}
-
+// NOTIFICAÇÕES INDIVIDUAIS
 // ---------------------------------
+const REMINDER_API = 'https://habit-tracker-notifications.joaopedro5723.workers.dev/api/task-reminders';
+let reminderSubscriptionId = null;
+function getSubscriptionId(){return new Promise((resolve,reject)=>{if(!window.OneSignalDeferred)return reject(new Error('OneSignal não carregou.'));window.OneSignalDeferred.push(async OneSignal=>{try{let id=OneSignal.User.PushSubscription.id;if(!id) {await OneSignal.User.PushSubscription.optIn();id=OneSignal.User.PushSubscription.id;}if(!id)throw new Error('Ativa primeiro as notificações no dispositivo.');resolve(id);}catch(e){reject(e);}});});}
+async function reminderRequest(url,options={}){const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});const data=await response.json();if(!response.ok)throw new Error(data.error||'Erro no servidor');return data;}
+function reminderTargets(){const list=state.habits.map(h=>({id:h.id,type:'habit',title:`${h.emoji||'✨'} ${h.name}`}));const seen=new Set();Object.values(state.tasks||{}).flat().forEach((t,i)=>{const name=String(t.name||'').trim();if(name&&!seen.has(name)){seen.add(name);list.push({id:'task:'+name,type:'task',title:`☑ ${name}`});}});return list;}
+async function openReminderManager(){
+ const old=$('#notificationPanel');if(old)old.remove();
+ const panel=document.createElement('div');panel.id='notificationPanel';panel.className='reminder-overlay';
+ panel.innerHTML=`<div class="reminder-modal"><header class="reminder-head"><div><span class="reminder-kicker">HABIT TRACKER</span><h2>Centro de notificações</h2><p>Define lembretes para cada hábito ou tarefa.</p></div><button class="iconbtn" id="closeReminderManager" aria-label="Fechar">✕</button></header><div class="reminder-toolbar"><span id="reminderSummary">A carregar notificações…</span><button class="primary" id="newReminder">＋ Nova</button></div><div id="reminderList" class="reminder-list"></div><div id="reminderEditor" hidden></div></div>`;
+ document.body.appendChild(panel);const close=()=>panel.remove();$('#closeReminderManager').onclick=close;panel.addEventListener('click',e=>{if(e.target===panel)close();});
+ try{reminderSubscriptionId=await getSubscriptionId();}catch(e){$('#reminderSummary').textContent='Notificações não ativadas neste dispositivo.';$('#reminderList').innerHTML=`<div class="reminder-empty">${escapeHTML(e.message)}<br><button class="primary" id="enablePush">Ativar notificações</button></div>`;$('#enablePush').onclick=async()=>{try{await window.OneSignalDeferred.push(async O=>{await O.User.PushSubscription.optIn();});toast('Permissão solicitada. Abre novamente o sino.');}catch(err){toast(err.message);}};return;}
+ async function load(){const data=await reminderRequest(`${REMINDER_API}?subscriptionId=${encodeURIComponent(reminderSubscriptionId)}`);renderList(data.reminders||[]);}
+ function renderList(items){$('#reminderSummary').textContent=`${items.length} notificações configuradas`;const list=$('#reminderList');if(!items.length){list.innerHTML='<div class="reminder-empty">Ainda não tens notificações.<br>Carrega em “Nova” para criar a primeira.</div>';return;}list.innerHTML=items.map(r=>`<article class="reminder-item"><div class="reminder-item-icon">${r.target_type==='habit'?'✦':'☑'}</div><div class="reminder-item-main"><strong>${escapeHTML(r.title)}</strong><span>${escapeHTML(r.reminder_time)} · ${r.frequency_type==='once'?'Uma vez':r.frequency_type==='morning'?'Diariamente':`A cada ${r.frequency_minutes} min`}</span><small>${r.enabled?'● Ativa':'○ Pausada'} · ${r.last_status==='sent'?'Último envio confirmado':r.last_status==='error'?'Erro no envio':'Sem envios registados'}</small></div><div class="reminder-item-actions"><button data-edit="${r.id}" aria-label="Editar">✎</button><button data-toggle="${r.id}" data-enabled="${r.enabled}" aria-label="Ativar ou pausar">${r.enabled?'Ⅱ':'▶'}</button><button data-delete="${r.id}" aria-label="Apagar">⌫</button></div></article>`).join('');list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editor(items.find(x=>String(x.id)===b.dataset.edit)));list.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{const r=items.find(x=>String(x.id)===b.dataset.toggle);try{await reminderRequest(REMINDER_API,{method:'PUT',body:JSON.stringify({...r,id:r.id,subscriptionId:reminderSubscriptionId,enabled:!r.enabled,frequency:r.frequency_type,time:r.reminder_time,days:JSON.parse(r.days_json)})});await load();}catch(e){toast(e.message);}});list.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('Apagar esta notificação?'))return;try{await reminderRequest(`${REMINDER_API}?id=${b.dataset.delete}&subscriptionId=${encodeURIComponent(reminderSubscriptionId)}`,{method:'DELETE'});await load();toast('Notificação apagada');}catch(e){toast(e.message);}});}
+ function editor(item=null){const ed=$('#reminderEditor');const targets=reminderTargets();ed.hidden=false;ed.innerHTML=`<div class="reminder-form"><div class="sectionhead"><h3>${item?'Editar notificação':'Nova notificação'}</h3><button id="cancelReminder" class="secondary">Fechar</button></div><label>Hábito ou tarefa</label><select id="reminderTarget">${targets.map(t=>`<option value="${escapeHTML(t.type+'|'+t.id)}">${escapeHTML(t.title)}</option>`).join('')}</select><label>Tipo de lembrete</label><select id="reminderFrequency"><option value="once">Uma vez</option><option value="morning">Todos os dias (uma vez)</option><option value="30">A cada 30 minutos</option><option value="60">A cada hora</option><option value="120">A cada 2 horas</option></select><label>Hora do lembrete / início</label><input id="reminderTime" type="time" value="${item?.reminder_time||'09:00'}"><label>Mensagem recebida</label><input id="reminderMessage" maxlength="180" value="${escapeHTML(item?.message||'')}" placeholder="Está na hora de cumprir o teu objetivo!"><label>Dias</label><div class="reminder-days">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d,i)=>`<label><input type="checkbox" value="${i}" ${(item?JSON.parse(item.days_json||'[]'):[1,2,3,4,5,6,0]).includes(i)?'checked':''}>${d}</label>`).join('')}</div><button class="primary reminder-save" id="saveReminderItem">${item?'Guardar alterações':'Criar notificação'}</button></div>`;
+ if(item){const sel=$('#reminderTarget');const value=(item.target_type||'task')+'|'+(item.target_id||'');if([...sel.options].some(o=>o.value===value))sel.value=value;$('#reminderFrequency').value=item.frequency_type;$('#reminderMessage').value=item.message||'';}
+ $('#cancelReminder').onclick=()=>ed.hidden=true;$('#saveReminderItem').onclick=async()=>{const [targetType,targetId]=$('#reminderTarget').value.split('|');const target=targets.find(t=>t.type===targetType&&t.id===targetId);const days=[...ed.querySelectorAll('.reminder-days input:checked')].map(x=>+x.value);const payload={id:item?.id,subscriptionId:reminderSubscriptionId,targetType,targetId,title:target?.title||'Lembrete',message:$('#reminderMessage').value.trim()||`Está na hora de: ${target?.title||'cumprir o teu objetivo'}`,frequency:$('#reminderFrequency').value,time:$('#reminderTime').value,days,enabled:item?!!item.enabled:true};if(!payload.time||!days.length){toast('Escolhe uma hora e pelo menos um dia.');return;}try{await reminderRequest(REMINDER_API,{method:item?'PUT':'POST',body:JSON.stringify(payload)});ed.hidden=true;await load();toast(item?'Notificação atualizada':'Notificação criada');}catch(e){toast(e.message);}};}
+ $('#newReminder').onclick=()=>editor();await load();
+}
+function setupNotificationButton(){const settingsButton=$('#settingsBtn');if(!settingsButton)return;let button=$('#notificationBtn');if(!button){button=document.createElement('button');button.id='notificationBtn';button.className='iconbtn notification-trigger';button.type='button';button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><i></i>';button.title='Centro de notificações';settingsButton.parentNode.insertBefore(button,settingsButton);}if(button.dataset.initialized==='true')return;button.dataset.initialized='true';button.addEventListener('click',()=>openReminderManager().catch(e=>{console.error(e);toast(e.message||'Erro ao abrir notificações');}));}
+
 // INITIALIZATION
 // ---------------------------------
 
